@@ -10,7 +10,7 @@ import { isProcTExp, makeBoolTExp, makeNumTExp, makeProcTExp, makeStrTExp, makeV
          parseTE, unparseTExp,
          BoolTExp, NumTExp, StrTExp, TExp, VoidTExp } from "./TExp";
 import { isEmpty, allT, first, rest, NonEmptyList, List, isNonEmptyList } from '../shared/list';
-import { Result, makeFailure, bind, makeOk, zipWithResult } from '../shared/result';
+import {Result, makeFailure, bind, makeOk, zipWithResult, isOk} from '../shared/result';
 import { parse as p } from "../shared/parser";
 import { format } from '../shared/format';
 
@@ -219,8 +219,18 @@ export const typeofLetrec = (exp: LetrecExp, tenv: TEnv): Result<TExp> => {
 // Typing rule:
 //   (define (var : texp) val)
 // TODO L51 - write the true definition
-export const typeofDefine = (exp: DefineExp, tenv: TEnv): Result<VoidTExp> =>
-    makeFailure("TODO");
+export const typeofDefine = (exp: DefineExp, tenv: TEnv): Result<VoidTExp> => {
+    const varStr = exp.var.var;
+    const varTExp = exp.var.texp;
+    const val = exp.val;
+    const typeOfVal = typeofExp(val, tenv);
+    if (isOk(typeOfVal) && isStrExp(varStr)) {
+        const resType = checkCompatibleType(varTExp, typeOfVal.value, exp);
+        if (isOk(resType)) {
+            return makeOk(makeVoidTExp());
+        } else return makeFailure(`Incompatible types in define!`);
+    } else return makeFailure(`Incompatible types in define!`);
+};
 
 // Purpose: compute the type of a program
 // Typing rule:
