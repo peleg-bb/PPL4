@@ -2,12 +2,23 @@
 
 // Q 2.1 
 
-// Specify the return type.
-export const delayedSum = async (a: number, b: number, delay: number) => 
-   "TODO";
+
+export const delayedSum = (a: number, b: number, delay: number): Promise<number> => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(a + b);
+      }, delay);
+    });
+  };
 
 export const testDelayedSum = () => {
-    console.log("TODO testDelayedSum");
+    console.log("testDelayedSum");
+    test('delayedSum waits at least the specified delay', () => {
+        let start = Date.now();
+        delayedSum(1, 2, 1000);
+        let end = Date.now();
+        expect(end - start).toBeGreaterThanOrEqual(1000);
+    })
  }
  
 

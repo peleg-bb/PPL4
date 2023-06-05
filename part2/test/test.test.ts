@@ -6,11 +6,33 @@ import {
 describe('Assignment 4 Part 2', () => {
     describe('Q2.1 delayedSum (6 points)', () => {
         test('delayedSum returns the sum', () => {
-
+            expect(delayedSum(1, 2, 1000)).resolves.toBe(3);
         })
-        test('delayedSum waits at least the specified delay', () => {
+        // checks the time now using Date.now(), checks the time after the call to delayedSum
+        test('delayedSum waits at least the specified delay', (done) => {
+            let start = Date.now();
+            let x = delayedSum(1, 2, 1000);
 
-        })
+            x.then((result) => {
+                let end = Date.now();
+                expect(end - start).toBeGreaterThanOrEqual(1000);
+                expect(result).toEqual(3);
+                done();
+            });
+        });
+
+        test('delayedSum does not wait too long', (done) => {
+            let start = Date.now();
+            let x = delayedSum(1, 2, 1000);
+
+            x.then((result) => {
+                let end = Date.now();
+                expect(end - start).toBeLessThan(2000);
+                // checking that it doesn't wait too long to confirm it waits the specified delay
+                expect(result).toEqual(3);
+                done();
+            });
+        });
     })
 
     describe('Q2.2 fetchData (12 points)', () => {
