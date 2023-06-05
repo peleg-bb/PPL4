@@ -44,8 +44,23 @@ export const invalidUrl = 'https://jsonplaceholder.typicode.com/invalid';
 
 // Depending on the url - fetchData can return either an array of Post[] or a single Post.
 // Specify the return type without using any.
-export const fetchData = async (url: String) => 
-    "TODO";
+export const fetchData = async (url: string): Promise<Post[] | Post> => {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    if (Array.isArray(data)) {
+      return data as Post[];
+    } else {
+      return data as Post;
+    }
+  } catch (error) {
+    console.error(`Error fetching data: ${error}`);
+    throw error;
+  }
+};
 
 export const testFetchData = () => {
     console.log("TODO testFetchData");
