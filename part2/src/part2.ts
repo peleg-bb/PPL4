@@ -66,6 +66,9 @@ export const testFetchData = () => {
 export const fetchMultipleUrls = async (urls: string[]): Promise<any[]> => {
     const promises = urls.map(url => fetch(url));
     const responses = await Promise.all(promises);
+    if (responses.some(response => !response.ok)) {
+      return Promise.reject(new Error(`HTTP error! status: ${responses.find(response => !response.ok)?.status}`));
+    }
     return await Promise.all(responses.map(response => response.json()));
 };
 

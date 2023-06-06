@@ -1,6 +1,6 @@
 import { describe, expect, test } from '@jest/globals'
 import {
-    delayedSum, Post, postsUrl, postUrl, invalidUrl, fetchData, fetchMultipleUrls
+    delayedSum, postsUrl, postUrl, invalidUrl, fetchData, fetchMultipleUrls
 } from '../src/part2';
 
 describe('Assignment 4 Part 2', () => {
@@ -67,25 +67,34 @@ describe('Assignment 4 Part 2', () => {
             expect(data[1].length).toBeGreaterThan(0);
           });
         
-          test('successful call to fetchMultipleUrls: verify results are in the expected order', async () => {
-            const urls = ['https://jsonplaceholder.typicode.com/posts/1', 'https://jsonplaceholder.typicode.com/comments/1'];
+        test('successful call to fetchMultipleUrls: verify results are in the expected order', async () => {
+            const baseUrl = 'https://jsonplaceholder.typicode.com';
+            const urls = [];
+            for (let i = 1; i <= 20; i++) {
+                urls.push(`${baseUrl}/posts/${i}`, `${baseUrl}/comments/${i}`);
+            }
             const data = await fetchMultipleUrls(urls);
             expect(data).toBeInstanceOf(Array);
             expect(data.length).toBe(urls.length);
-            expect(data[0]).toHaveProperty('id', 1);
-            expect(data[0]).toHaveProperty('userId', 1);
-            expect(data[0]).toHaveProperty('title');
-            expect(data[0]).toHaveProperty('body');
-            expect(data[1]).toHaveProperty('id', 1);
-            expect(data[1]).toHaveProperty('postId', 1);
-            expect(data[1]).toHaveProperty('name');
-            expect(data[1]).toHaveProperty('email');
-            expect(data[1]).toHaveProperty('body');
-          });
+            for (let i = 1; i < 20; i++) {
+                const postIndex = 2*i;
+                const commentIndex = postIndex + 1;
+                expect(data[postIndex]).toHaveProperty('id');
+                expect(data[postIndex]).toHaveProperty('userId');
+                expect(data[postIndex]).toHaveProperty('title');
+                expect(data[postIndex]).toHaveProperty('body');
+                expect(data[commentIndex]).toHaveProperty('id');
+                expect(data[commentIndex]).toHaveProperty('postId');
+                expect(data[commentIndex]).toHaveProperty('name');
+                expect(data[commentIndex]).toHaveProperty('email');
+                expect(data[commentIndex]).toHaveProperty('body');
+            }
+            });
         
           test('failed call to fetchMultipleUrls', async () => {
             const urls = ['https://jsonplaceholder.typicode.com/posts', 'https://jsonplaceholder.typicode.com/invalid'];
-            await expect(fetchMultipleUrls(urls)).rejects.toThrow('HTTP error!');
+            const failure = fetchMultipleUrls(urls);
+            await expect(failure).rejects.toThrow('HTTP error!');
           });
         });
 })
