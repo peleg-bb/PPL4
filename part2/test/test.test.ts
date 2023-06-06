@@ -35,14 +35,24 @@ describe('Assignment 4 Part 2', () => {
         });
     })
 
+
     describe('Q2.2 fetchData (12 points)', () => {
         test('successful call to fetchData with array result', async () => {
+            const posts = await fetchData(postsUrl);
+            // @ts-ignore
+            expect(posts.length).toBeGreaterThan(0);
         })
 
         test('successful call to fetchData with Post result', async () => {
+            const post = await fetchData(postUrl+1); // append the desired post id - 1
+            expect(post).toHaveProperty('id', 1);
+            expect(post).toHaveProperty('userId', 1);
+            expect(post).toHaveProperty('title');
+            expect(post).toHaveProperty('body');
         })
 
         test('failed call to fechData', async () => {
+            await expect(fetchData(invalidUrl)).rejects.toThrow();
         })
 
     })
