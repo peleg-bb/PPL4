@@ -59,14 +59,32 @@ describe('Assignment 4 Part 2', () => {
 
     describe('Q2.3 fetchMultipleUrls (12 points)', () => {
         test('successful call to fetchMultipleUrls', async () => {
-        })
-
-        test('successful call to fetchMultipleUrls: verify results are in the expected order ', async () => {
-        })
-
-        test('failed call to fetchMultipleUrls', async () => {
-        })
-
-    })
-});
-
+            const urls = ['https://jsonplaceholder.typicode.com/posts', 'https://jsonplaceholder.typicode.com/comments'];
+            const data = await fetchMultipleUrls(urls);
+            expect(data.length).toBe(urls.length);
+            expect(data[0].length).toBeGreaterThan(0);
+            expect(data[1].length).toBeGreaterThan(0);
+          });
+        
+          test('successful call to fetchMultipleUrls: verify results are in the expected order', async () => {
+            const urls = ['https://jsonplaceholder.typicode.com/posts/1', 'https://jsonplaceholder.typicode.com/comments/1'];
+            const data = await fetchMultipleUrls(urls);
+            expect(data).toBeInstanceOf(Array);
+            expect(data.length).toBe(urls.length);
+            expect(data[0]).toHaveProperty('id', 1);
+            expect(data[0]).toHaveProperty('userId', 1);
+            expect(data[0]).toHaveProperty('title');
+            expect(data[0]).toHaveProperty('body');
+            expect(data[1]).toHaveProperty('id', 1);
+            expect(data[1]).toHaveProperty('postId', 1);
+            expect(data[1]).toHaveProperty('name');
+            expect(data[1]).toHaveProperty('email');
+            expect(data[1]).toHaveProperty('body');
+          });
+        
+          test('failed call to fetchMultipleUrls', async () => {
+            const urls = ['https://jsonplaceholder.typicode.com/posts', 'https://jsonplaceholder.typicode.com/invalid'];
+            await expect(fetchMultipleUrls(urls)).rejects.toThrow('HTTP error!');
+          });
+        });
+})

@@ -68,9 +68,19 @@ export const testFetchData = () => {
 
 // Q 2.3
 
-// Specify the return type.
-export const fetchMultipleUrls = async (urls: string[]) => 
-    "TODO";
+export const fetchMultipleUrls = async (urls: string[]): Promise<any[]> => {
+  try {
+    const promises = urls.map(url => fetch(url));
+    const responses = await Promise.all(promises);
+    if (responses.some(response => !response.ok)) {
+      throw new Error('HTTP error!');
+    }
+    return await Promise.all(responses.map(response => response.json()));
+  } catch (error) {
+    console.error(`Error fetching data: ${error}`);
+    throw error;
+  }
+};
 
 export const testFetchMultipleUrls = () => {
     console.log("TODO testFetchData");
