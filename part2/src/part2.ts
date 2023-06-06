@@ -45,10 +45,9 @@ export const invalidUrl = 'https://jsonplaceholder.typicode.com/invalid';
 // Depending on the url - fetchData can return either an array of Post[] or a single Post.
 // Specify the return type without using any.
 export const fetchData = async (url: string): Promise<Post[] | Post> => {
-  try {
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      return Promise.reject(new Error(`HTTP error! status: ${response.status}`));
     }
     const data = await response.json();
     if (Array.isArray(data)) {
@@ -56,10 +55,6 @@ export const fetchData = async (url: string): Promise<Post[] | Post> => {
     } else {
       return data as Post;
     }
-  } catch (error) {
-    console.error(`Error fetching data: ${error}`);
-    throw error;
-  }
 };
 
 export const testFetchData = () => {
@@ -69,17 +64,9 @@ export const testFetchData = () => {
 // Q 2.3
 
 export const fetchMultipleUrls = async (urls: string[]): Promise<any[]> => {
-  try {
     const promises = urls.map(url => fetch(url));
     const responses = await Promise.all(promises);
-    if (responses.some(response => !response.ok)) {
-      throw new Error('HTTP error!');
-    }
     return await Promise.all(responses.map(response => response.json()));
-  } catch (error) {
-    console.error(`Error fetching data: ${error}`);
-    throw error;
-  }
 };
 
 export const testFetchMultipleUrls = () => {

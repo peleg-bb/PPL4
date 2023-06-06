@@ -52,7 +52,8 @@ describe('Assignment 4 Part 2', () => {
         })
 
         test('failed call to fechData', async () => {
-            await expect(fetchData(invalidUrl)).rejects.toThrow();
+            const failure = fetchData(invalidUrl);
+            await expect(failure).rejects.toThrow('HTTP error!');
         })
 
     })
