@@ -192,5 +192,4 @@ describe('L5 Unparse', () => {
         expect(TExpRoundTrip(union4)).toEqual(makeOk(unparsed));
     })
 
-
 });

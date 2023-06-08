@@ -103,7 +103,8 @@ export const flatten = <T>(listOfLists: readonly T[][]): T[] => R.chain(R.identi
 export const poolToEquations = (pool: Pool): Opt.Optional<Equation[]> => {
     // VarRef generate no equations beyond that of var-decl - remove them.
     const poolWithoutVars = R.filter(R.propSatisfies(R.complement(A.isVarRef), 'e'), pool);
-    return Opt.mapv(Opt.mapOptional((e: A.Exp) => makeEquationsFromExp(e, pool), R.map(R.prop('e'), poolWithoutVars)), 
+    // @ts-ignore
+    return Opt.mapv(Opt.mapOptional((e: A.Exp) => makeEquationsFromExp(e, pool), R.map(R.prop('e'), poolWithoutVars)),
                     (eqns: Equation[][]) => flatten(eqns));
 };
 

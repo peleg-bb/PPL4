@@ -1,10 +1,10 @@
 import { isTypedArray } from 'util/types';
-import { isProgram, parseL5, Program } from '../src/L5/L5-ast';
+import {isProgram, makeNumExp, parseL5, Program} from '../src/L5/L5-ast';
 import { typeofProgram, L5typeof, checkCompatibleType } from '../src/L5/L5-typecheck';
 import { applyTEnv } from '../src/L5/TEnv';
 import { isNumTExp, isProcTExp, makeBoolTExp, makeNumTExp, makeProcTExp, makeTVar, 
          makeVoidTExp, parseTE, unparseTExp, TExp, isTExp } from '../src/L5/TExp';
-import { makeOk, isOkT, bind, mapv, isFailure, Result } from '../src/shared/result';
+import {makeOk, isOkT, bind, mapv, isFailure, Result, isOk} from '../src/shared/result';
 
 describe('L5 Type Checker', () => {
     describe('parseTE', () => {
@@ -132,9 +132,26 @@ describe('L5 Type Checker', () => {
         // TODO L51
     });
 
-    // TODO L51 Test checkCompatibleType with unions
+
+
     describe('L5 Test checkCompatibleType with unions', () => {
-        // TODO L51
+        const res1 = parseTE("(union number string)");
+        const res2 = parseTE("(union string (union boolean number))");
+        if(isOk(res1) && isOk(res2)){
+            it('returns true if the types are compatible', () => {
+                expect(checkCompatibleType(res1.value, res2.value, makeNumExp(5))).toSatisfy(isOk);
+                expect(checkCompatibleType(res2.value, res1.value, makeNumExp(5))).toSatisfy(isFailure);
+            });
+
+        }
+        const res3 = parseTE("string");
+        const res4 = parseTE("(union string (union boolean number))");
+        if(isOk(res3) && isOk(res4)){
+            it('returns true if the types are compatible', () => {
+                expect(checkCompatibleType(res3.value, res4.value, makeNumExp(5))).toSatisfy(isOk);
+                expect(checkCompatibleType(res4.value, res3.value, makeNumExp(5))).toSatisfy(isFailure);
+            });
+        }
     });
 
     // TODO L51 Test makeUnion
