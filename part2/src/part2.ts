@@ -72,7 +72,7 @@ export const testFetchData = () => {
 
 // Q 2.3
 
-export const fetchMultipleUrls = async (urls: string[]): Promise<any[]> => {
+export const fetchMultipleUrls = async (urls: string[]): Promise<string[]> => {
     const promises = urls.map(url => fetch(url));
     const responses = await Promise.all(promises);
     if (responses.some(response => !response.ok)) {
