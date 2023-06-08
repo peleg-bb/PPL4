@@ -171,4 +171,14 @@ describe('L5 Unparse', () => {
         const union1 = "(union (number -> string) (union string boolean))";
         expect(roundTrip(union1)).toEqual(makeOk(union1));
     })
+
+    it('unparses union, nested unions in different positions', () => {
+        const union2 = "(union (union number string) (union string boolean))";
+        expect(roundTrip(union2)).toEqual(makeOk(union2));
+    })
+
+    it('unparses union, nested unions in different positions', () => {
+        const union3 = "(union (union number string) (union string (union boolean number)))";
+        expect(roundTrip(union3)).toEqual(makeOk(union3));
+    })
 });

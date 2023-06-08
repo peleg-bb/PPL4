@@ -33,9 +33,9 @@
 ;; [Empty -> [union boolean number]]
 ;; [union [T1 -> T1] [Empty -> T1]]
 */
-import { F, chain, comparator, concat, dropRepeats, flatten, join, map, reduce, slice, union, uniq } from "ramda";
+import { chain, comparator, concat, dropRepeats, flatten, join, map, reduce, slice, union, uniq } from "ramda";
 import { Sexp } from "s-expression";
-import { allT, isEmpty, isNonEmptyList } from "../shared/list";
+import {allT, isEmpty, isNonEmptyList, List} from "../shared/list";
 import { isArray, isBoolean, isString } from '../shared/type-predicates';
 import { makeBox, setBox, unbox, Box } from '../shared/box';
 import { cons, first, rest } from '../shared/list';
@@ -237,6 +237,10 @@ const parseTupleTExp = (texps: Sexp[]): Result<TExp[]> => {
 }
 
 // TODO L51 support unparsing of union types
+function getF(components: List<string[]|string>): Result<string[]> {
+    return isString(components)? makeOk(["(union " + components + ")"]) : makeOk([`(union ${components.flat().sort().join(' ')})`]);
+}
+
 /*
 ;; Purpose: Unparse a type expression Texp into its concrete form
 */
@@ -259,7 +263,7 @@ export const unparseTExp = (te: TExp): Result<string> => {
                                             [...paramTEs, '->', returnTE])) :
                                     isEmptyTupleTExp(x) ? makeOk("Empty") :
                                         isNonEmptyTupleTExp(x) ? unparseTuple(x.TEs) :
-                                            isUnionTExp(x) ? makeOk('union') :
+                                            isUnionTExp(x) ? bind(mapResult(up, x.components.sort()), getF) :
                                                 x === undefined ? makeFailure("Undefined TVar") :
                                                     x;
 
