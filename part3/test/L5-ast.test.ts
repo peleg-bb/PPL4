@@ -4,7 +4,7 @@ import { isNumExp, isBoolExp, isVarRef, isPrimOp, isProgram, isDefineExp, isVarD
 import { Result, bind, mapv, isOkT, makeOk, isFailure, isOk } from "../src/shared/result";
 import { parse as parseSexp } from "../src/shared/parser";
 import { first, second } from "../src/shared/list";
-import { isNumTExp, isProcTExp, isUnionTExp, parseTE } from "../src/L5/TExp";
+import {isNumTExp, isProcTExp, isUnionTExp, parseTE, unparseTExp} from "../src/L5/TExp";
 import { is } from "ramda";
 
 const p = (x: string): Result<Exp> => bind(parseSexp(x), (p) => parseL5Exp(p));
@@ -146,6 +146,7 @@ describe('L5 parse with unions', () => {
 
 describe('L5 Unparse', () => {
     const roundTrip = (x: string): Result<string> => bind(p(x), unparse);
+    const TExpRoundTrip = (x: string): Result<string> => bind(parseTE(x), unparseTExp);
 
     it('unparses "define" expressions with type annotations', () => {
         const define = "(define (a : number) 1)";
@@ -168,17 +169,22 @@ describe('L5 Unparse', () => {
     });
 
     it('unparses union, nested unions in different positions', () => {
-        const union1 = "(union (number -> string) (union string boolean))";
-        expect(roundTrip(union1)).toEqual(makeOk(union1));
-    })
+        const toParse = "(union (number -> string) (union string boolean))";
+        const unparsed = "(union boolean (union (number -> string) string))";
+        expect(TExpRoundTrip(toParse)).toEqual(makeOk(unparsed));
+    });
 
     it('unparses union, nested unions in different positions', () => {
         const union2 = "(union (union number string) (union string boolean))";
-        expect(roundTrip(union2)).toEqual(makeOk(union2));
+        const unparsed = "(union boolean (union number string))";
+        expect(TExpRoundTrip(union2)).toEqual(makeOk(unparsed));
     })
 
     it('unparses union, nested unions in different positions', () => {
         const union3 = "(union (union number string) (union string (union boolean number)))";
-        expect(roundTrip(union3)).toEqual(makeOk(union3));
+        const unparsed = "(union boolean (union number string))";
+        expect(TExpRoundTrip(union3)).toEqual(makeOk(unparsed));
     })
+
+
 });

@@ -237,8 +237,23 @@ const parseTupleTExp = (texps: Sexp[]): Result<TExp[]> => {
 }
 
 // TODO L51 support unparsing of union types
-function getF(components: List<string[]|string>): Result<string[]> {
-    return isString(components)? makeOk(["(union " + components + ")"]) : makeOk([`(union ${components.flat().sort().join(' ')})`]);
+// function getF(components: List<string[]|string>): Result<string[]> {
+//     return isString(components)? makeOk(["(union " + components + ")"]) : makeOk([`(union ${components.flat().sort().join(' ')})`]);
+// }
+
+function unparseUnionTExp(exp : UnionTExp): string {
+    const arr =exp.components.map((x)=>unparseTExp(x));
+    if(allT(isOk, arr)){
+        return unparseUnionTExpHelper(arr.map((x)=>isOk(x)? x.value : "never"));
+    }
+    return "never";
+}
+
+const unparseUnionTExpHelper = (exps : string[]): string => {
+    if(exps.length === 2){
+        return `(union ${exps[0]} ${exps[1]})`;
+    }
+    return `(union ${exps[0]} ${unparseUnionTExpHelper(exps.slice(1))})`;
 }
 
 /*
@@ -263,7 +278,7 @@ export const unparseTExp = (te: TExp): Result<string> => {
                                             [...paramTEs, '->', returnTE])) :
                                     isEmptyTupleTExp(x) ? makeOk("Empty") :
                                         isNonEmptyTupleTExp(x) ? unparseTuple(x.TEs) :
-                                            isUnionTExp(x) ? bind(mapResult(up, x.components.sort()), getF) :
+                                            isUnionTExp(x) ? makeOk(unparseUnionTExp(x)) :
                                                 x === undefined ? makeFailure("Undefined TVar") :
                                                     x;
 
