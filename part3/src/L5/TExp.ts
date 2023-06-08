@@ -33,15 +33,18 @@
 ;; [Empty -> [union boolean number]]
 ;; [union [T1 -> T1] [Empty -> T1]]
 */
-import { chain, concat, map, uniq } from "ramda";
+import { F, chain, comparator, concat, dropRepeats, flatten, join, map, reduce, slice, union, uniq } from "ramda";
 import { Sexp } from "s-expression";
-import { isEmpty, isNonEmptyList } from "../shared/list";
+import { allT, isEmpty, isNonEmptyList } from "../shared/list";
 import { isArray, isBoolean, isString } from '../shared/type-predicates';
 import { makeBox, setBox, unbox, Box } from '../shared/box';
 import { cons, first, rest } from '../shared/list';
-import { Result, bind, makeOk, makeFailure, mapResult, mapv } from "../shared/result";
+import { Result, bind, makeOk, makeFailure, mapResult, mapv, isOk } from "../shared/result";
 import { parse as p } from "../shared/parser";
 import { format } from "../shared/format";
+import { checkCompatibleType } from "./L5-typecheck";
+import { makeEmptySExp } from "./L5-value";
+import { makeBoolExp, makeStrExp } from "./L5-ast";
 
 // TODO L51: Support union types where needed
 export type TExp =  AtomicTExp | CompoundTExp | TVar;
@@ -51,8 +54,8 @@ export type AtomicTExp = NumTExp | BoolTExp | StrTExp | VoidTExp;
 export const isAtomicTExp = (x: any): x is AtomicTExp =>
     isNumTExp(x) || isBoolTExp(x) || isStrTExp(x) || isVoidTExp(x);
 
-export type CompoundTExp = ProcTExp | TupleTExp;
-export const isCompoundTExp = (x: any): x is CompoundTExp => isProcTExp(x) || isTupleTExp(x);
+export type CompoundTExp = ProcTExp | TupleTExp | UnionTExp;
+export const isCompoundTExp = (x: any): x is CompoundTExp => isProcTExp(x) || isTupleTExp(x) || isUnionTExp(x);
 
 export type NonTupleTExp = AtomicTExp | ProcTExp | TVar;
 export const isNonTupleTExp = (x: any): x is NonTupleTExp =>
@@ -96,6 +99,10 @@ export type NonEmptyTupleTExp = { tag: "NonEmptyTupleTExp"; TEs: NonTupleTExp[];
 export const makeNonEmptyTupleTExp = (tes: NonTupleTExp[]): NonEmptyTupleTExp =>
     ({tag: "NonEmptyTupleTExp", TEs: tes});
 export const isNonEmptyTupleTExp = (x: any): x is NonEmptyTupleTExp => x.tag === "NonEmptyTupleTExp";
+
+//Union
+export type UnionTExp = {tag: "UnionTExp"; components: TExp[]; }
+export const isUnionTExp = (x: any): x is UnionTExp => x.tag === "UnionTExp";
 
 // TVar: Type Variable with support for dereferencing (TVar -> TVar)
 export type TVar = { tag: "TVar"; var: string; contents: Box<undefined | TExp>; };
@@ -156,12 +163,12 @@ export const parseTE = (t: string): Result<TExp> =>
 */
 export const parseTExp = (texp: Sexp): Result<TExp> =>
     (texp === "number") ? makeOk(makeNumTExp()) :
-    (texp === "boolean") ? makeOk(makeBoolTExp()) :
-    (texp === "void") ? makeOk(makeVoidTExp()) :
-    (texp === "string") ? makeOk(makeStrTExp()) :
-    isString(texp) ? makeOk(makeTVar(texp)) :
-    isArray(texp) ? parseCompoundTExp(texp) :
-    makeFailure(`Unexpected TExp - ${format(texp)}`);
+        (texp === "boolean") ? makeOk(makeBoolTExp()) :
+            (texp === "void") ? makeOk(makeVoidTExp()) :
+                (texp === "string") ? makeOk(makeStrTExp()) :
+                    isString(texp) ? makeOk(makeTVar(texp)) :
+                        isArray(texp) ? parseCompoundTExp(texp) :
+                            makeFailure(`Unexpected TExp - ${format(texp)}`);
 
 // TODO L51: Support parsing of union types
 /*
@@ -169,16 +176,47 @@ export const parseTExp = (texp: Sexp): Result<TExp> =>
 ;; expected exactly one -> in the list
 ;; We do not accept (a -> b -> c) - must parenthesize
 */
-const parseCompoundTExp = (texps: Sexp[]): Result<ProcTExp> => {
+const parseCompoundTExp = (texps: Sexp[]): Result<TExp> => {
     const pos = texps.indexOf('->');
-    return (pos === -1)  ? makeFailure(`Procedure type expression without -> - ${format(texps)}`) :
-           (pos === 0) ? makeFailure(`No param types in proc texp - ${format(texps)}`) :
-           (pos === texps.length - 1) ? makeFailure(`No return type in proc texp - ${format(texps)}`) :
-           (texps.slice(pos + 1).indexOf('->') > -1) ? makeFailure(`Only one -> allowed in a procexp - ${format(texps)}`) :
-           bind(parseTupleTExp(texps.slice(0, pos)), (args: TExp[]) =>
-               mapv(parseTExp(texps[pos + 1]), (returnTE: TExp) =>
-                    makeProcTExp(args, returnTE)));
+    return (pos === -1)  ? parseUnionTExp(texps) :
+        (pos === 0) ? makeFailure(`No param types in proc texp - ${format(texps)}`) :
+            (pos === texps.length - 1) ? makeFailure(`No return type in proc texp - ${format(texps)}`) :
+                (texps.slice(pos + 1).indexOf('->') > -1) ? makeFailure(`Only one -> allowed in a procexp - ${format(texps)}`) :
+                    bind(parseTupleTExp(texps.slice(0, pos)), (args: TExp[]) =>
+                        mapv(parseTExp(texps[pos + 1]), (returnTE: TExp) =>
+                            makeProcTExp(args, returnTE)));
 };
+
+const parseUnionTExp = (texps: Sexp[]): Result<TExp> => {
+    if(isEmpty(texps)){
+        return makeFailure("Empty!");
+    }
+    if(!(texps[0] === "union")){
+        return makeFailure("Undefined!");
+    }
+    if(texps.length === 1){
+        return makeFailure("Empty union - undifined!");
+    }
+    if(!(texps.length === 3)){
+        return makeFailure("Union must get 2 types!");
+    }
+    const arr = (texps.slice(1)).map(parseTExp);
+    if (!allT(isOk, arr)){
+        return makeFailure("Undefined components!");
+    }
+    const arr2 = arr.map((x)=>isOk(x)? x.value: makeVoidTExp());
+    const unionsArr = arr2.filter(isUnionTExp);
+    const unionsArrComponents = flatten(unionsArr.map((x)=>x.components));
+    const arr3 = arr2.filter((x)=>!isUnionTExp(x));
+    const finalArr = uniq(union(unionsArrComponents, arr3)).sort((x,y)=>
+        x.tag>y.tag? 1:
+            x.tag<y.tag? -1: 0);
+    if(finalArr.length === 1){
+        return makeOk(finalArr[0]);
+    }
+    return makeOk({tag: "UnionTExp", components: finalArr});
+};
+
 
 /*
 ;; Expected structure: <te1> [* <te2> ... * <ten>]?
@@ -190,12 +228,12 @@ const parseTupleTExp = (texps: Sexp[]): Result<TExp[]> => {
     // [x1 * x2 * ... * xn] => [x1,...,xn]
     const splitEvenOdds = (texps: Sexp[]): Result<Sexp[]> =>
         isEmpty(texps) ? makeOk([]) :
-        (texps.length === 1) ? makeOk(texps) :
-        texps[1] !== '*' ? makeFailure(`Parameters of procedure type must be separated by '*': ${format(texps)}`) :
-        mapv(splitEvenOdds(texps.slice(2)), (sexps: Sexp[]) => [texps[0], ...sexps]);
+            (texps.length === 1) ? makeOk(texps) :
+                texps[1] !== '*' ? makeFailure(`Parameters of procedure type must be separated by '*': ${format(texps)}`) :
+                    mapv(splitEvenOdds(texps.slice(2)), (sexps: Sexp[]) => [texps[0], ...sexps]);
 
-    return isEmptyTuple(texps) ? makeOk([]) : bind(splitEvenOdds(texps), (argTEs: Sexp[]) => 
-                                                    mapResult(parseTExp, argTEs));
+    return isEmptyTuple(texps) ? makeOk([]) : bind(splitEvenOdds(texps), (argTEs: Sexp[]) =>
+        mapResult(parseTExp, argTEs));
 }
 
 // TODO L51 support unparsing of union types
@@ -205,30 +243,31 @@ const parseTupleTExp = (texps: Sexp[]): Result<TExp[]> => {
 export const unparseTExp = (te: TExp): Result<string> => {
     const unparseTuple = (paramTes: TExp[]): Result<string[]> =>
         isNonEmptyList<TExp>(paramTes) ? bind(unparseTExp(first(paramTes)), (paramTE: string) =>
-            mapv(mapResult(unparseTExp, rest(paramTes)), (paramTEs: string[]) =>
-                cons(paramTE, chain(te => ['*', te], paramTEs)))) :
-        makeOk(["Empty"]);
+                mapv(mapResult(unparseTExp, rest(paramTes)), (paramTEs: string[]) =>
+                    cons(paramTE, chain(te => ['*', te], paramTEs)))) :
+            makeOk(["Empty"]);
 
     const up = (x?: TExp): Result<string | string[]> =>
         isNumTExp(x) ? makeOk('number') :
-        isBoolTExp(x) ? makeOk('boolean') :
-        isStrTExp(x) ? makeOk('string') :
-        isVoidTExp(x) ? makeOk('void') :
-        isEmptyTVar(x) ? makeOk(x.var) :
-        isTVar(x) ? up(tvarContents(x)) :
-        isProcTExp(x) ? bind(unparseTuple(x.paramTEs), (paramTEs: string[]) =>
-                            mapv(unparseTExp(x.returnTE), (returnTE: string) =>
-                                [...paramTEs, '->', returnTE])) :
-        isEmptyTupleTExp(x) ? makeOk("Empty") :
-        isNonEmptyTupleTExp(x) ? unparseTuple(x.TEs) :
-        x === undefined ? makeFailure("Undefined TVar") :
-        x;
+            isBoolTExp(x) ? makeOk('boolean') :
+                isStrTExp(x) ? makeOk('string') :
+                    isVoidTExp(x) ? makeOk('void') :
+                        isEmptyTVar(x) ? makeOk(x.var) :
+                            isTVar(x) ? up(tvarContents(x)) :
+                                isProcTExp(x) ? bind(unparseTuple(x.paramTEs), (paramTEs: string[]) =>
+                                        mapv(unparseTExp(x.returnTE), (returnTE: string) =>
+                                            [...paramTEs, '->', returnTE])) :
+                                    isEmptyTupleTExp(x) ? makeOk("Empty") :
+                                        isNonEmptyTupleTExp(x) ? unparseTuple(x.TEs) :
+                                            isUnionTExp(x) ? makeOk('union') :
+                                                x === undefined ? makeFailure("Undefined TVar") :
+                                                    x;
 
     const unparsed = up(te);
     return mapv(unparsed,
-                (x: string | string[]) => isString(x) ? x :
-                                          isArray(x) ? `(${x.join(' ')})` :
-                                          x);
+        (x: string | string[]) => isString(x) ? x :
+            isArray(x) ? `(${x.join(' ')})` :
+                x);
 }
 
 // No need to change this for Union
@@ -260,36 +299,36 @@ const matchTVarsInTE = <T1, T2>(te1: TExp, te2: TExp,
                                 succ: (mapping: Array<Pair<TVar, TVar>>) => T1,
                                 fail: () => T2): T1 | T2 =>
     (isTVar(te1) || isTVar(te2)) ? matchTVarsinTVars(tvarDeref(te1), tvarDeref(te2), succ, fail) :
-    (isAtomicTExp(te1) || isAtomicTExp(te2)) ?
-        ((isAtomicTExp(te1) && isAtomicTExp(te2) && eqAtomicTExp(te1, te2)) ? succ([]) : fail()) :
-    matchTVarsInTProcs(te1, te2, succ, fail);
+        (isAtomicTExp(te1) || isAtomicTExp(te2)) ?
+            ((isAtomicTExp(te1) && isAtomicTExp(te2) && eqAtomicTExp(te1, te2)) ? succ([]) : fail()) :
+            matchTVarsInTProcs(te1, te2, succ, fail);
 
 // te1 and te2 are the result of tvarDeref
 const matchTVarsinTVars = <T1, T2>(te1: TExp, te2: TExp,
-                                    succ: (mapping: Array<Pair<TVar, TVar>>) => T1,
-                                    fail: () => T2): T1 | T2 =>
+                                   succ: (mapping: Array<Pair<TVar, TVar>>) => T1,
+                                   fail: () => T2): T1 | T2 =>
     (isTVar(te1) && isTVar(te2)) ? (eqTVar(te1, te2) ? succ([]) : succ([{left: te1, right: te2}])) :
-    (isTVar(te1) || isTVar(te2)) ? fail() :
-    matchTVarsInTE(te1, te2, succ, fail);
+        (isTVar(te1) || isTVar(te2)) ? fail() :
+            matchTVarsInTE(te1, te2, succ, fail);
 
 const matchTVarsInTProcs = <T1, T2>(te1: TExp, te2: TExp,
-        succ: (mapping: Array<Pair<TVar, TVar>>) => T1,
-        fail: () => T2): T1 | T2 =>
-    (isProcTExp(te1) && isProcTExp(te2)) ? matchTVarsInTEs(procTExpComponents(te1), procTExpComponents(te2), succ, fail) :
-    fail();
-
-const matchTVarsInTEs = <T1, T2>(te1: TExp[], te2: TExp[],
                                     succ: (mapping: Array<Pair<TVar, TVar>>) => T1,
                                     fail: () => T2): T1 | T2 =>
+    (isProcTExp(te1) && isProcTExp(te2)) ? matchTVarsInTEs(procTExpComponents(te1), procTExpComponents(te2), succ, fail) :
+        fail();
+
+const matchTVarsInTEs = <T1, T2>(te1: TExp[], te2: TExp[],
+                                 succ: (mapping: Array<Pair<TVar, TVar>>) => T1,
+                                 fail: () => T2): T1 | T2 =>
     // Match first then continue on rest
     isNonEmptyList<TExp>(te1) && isNonEmptyList<TExp>(te2) ?
         matchTVarsInTE(first(te1), first(te2),
-                        (subFirst) => matchTVarsInTEs(rest(te1), rest(te2), 
-                                        (subRest) => succ(concat(subFirst, subRest)), 
-                                        fail),
-                        fail) :
-    (isEmpty(te1) && isEmpty(te2)) ? succ([]) :
-    fail();
+            (subFirst) => matchTVarsInTEs(rest(te1), rest(te2),
+                (subRest) => succ(concat(subFirst, subRest)),
+                fail),
+            fail) :
+        (isEmpty(te1) && isEmpty(te2)) ? succ([]) :
+            fail();
 
 // Signature: equivalent-tes?(te1, te2)
 // Purpose:   Check whether 2 type expressions are equivalent up to

@@ -1,10 +1,11 @@
 import { isNumExp, isBoolExp, isVarRef, isPrimOp, isProgram, isDefineExp, isVarDecl,
-         isAppExp, isStrExp, isIfExp, isProcExp, isLetExp, isLitExp, isLetrecExp, isSetExp,
-         parseL5Exp, unparse, Exp, parseL5, Program, Parsed } from "../src/L5/L5-ast";
-import { Result, bind, mapv, isOkT, makeOk, isFailure } from "../src/shared/result";
+    isAppExp, isStrExp, isIfExp, isProcExp, isLetExp, isLitExp, isLetrecExp, isSetExp,
+    parseL5Exp, unparse, Exp, parseL5, Program, Parsed } from "../src/L5/L5-ast";
+import { Result, bind, mapv, isOkT, makeOk, isFailure, isOk } from "../src/shared/result";
 import { parse as parseSexp } from "../src/shared/parser";
 import { first, second } from "../src/shared/list";
-import { isProcTExp, parseTE } from "../src/L5/TExp";
+import { isNumTExp, isProcTExp, isUnionTExp, parseTE } from "../src/L5/TExp";
+import { is } from "ramda";
 
 const p = (x: string): Result<Exp> => bind(parseSexp(x), (p) => parseL5Exp(p));
 
@@ -87,41 +88,43 @@ describe('L5 Parser', () => {
 
 describe('L5 parseTExp Union Parser', () => {
     it('parseTExp parses simple union expressions', () => {
-        // todo
+        expect(parseTE("(union number string)")).toSatisfy(isOkT(isUnionTExp));
+        expect(parseTE("(union number number)")).toSatisfy(isOkT(isNumTExp));
     });
 
     it('parseTExp parses embedded union expressions', () => {
-        // todo
+        expect(parseTE("(union (union string number) string)")).toSatisfy(isOkT(isUnionTExp));
     });
 
     it('parseTExp parses union types in proc argument position', () => {
-        // todo
+        expect(parseTE("((union string boolean) -> number)")).toSatisfy(isOkT(isProcTExp));
     });
 
     it('parseTExp parses union types in return type argument position', () => {
-        // todo
+        expect(parseTE("(empty -> (union string boolean))")).toSatisfy(isOkT(isProcTExp));
     });
 
     it('parseTExp fails to parse union of bad type expressions', () => {
-        // todo
+        expect(parseTE("(union string boolean number)")).toSatisfy(isFailure);
+        expect(parseTE("(union (union blah) string)")).toSatisfy(isFailure);
     });
 
 });
 
 describe('L5 parse with unions', () => {
     // parse, unparse, remove-whitespace
-    const roundTrip = (x: string): Result<string> => 
+    const roundTrip = (x: string): Result<string> =>
         bind(parseL5(x), (p: Program) =>
-            mapv(unparse(p), (s: string) => 
+            mapv(unparse(p), (s: string) =>
                 s.replace(/\s/g, "")));
 
     // Compare original string with round-trip (neutralizes white spaces)
     const testProgram = (x: string): Result<void> =>
-            mapv(roundTrip(x), (rt: string) => {
-                // console.log(`roundTrip success`);
-                expect(x.replace(/\s/g, "")).toEqual(rt);
-            });
-    
+        mapv(roundTrip(x), (rt: string) => {
+            // console.log(`roundTrip success`);
+            expect(x.replace(/\s/g, "")).toEqual(rt);
+        });
+
     it('unparses union of atomic types in different positions: define, let, param, return types', () => {
         const dt1 = `
         (L5 
@@ -165,6 +168,7 @@ describe('L5 Unparse', () => {
     });
 
     it('unparses union, nested unions in different positions', () => {
-        // TODO
+        const union1 = "(union (number -> string) (union string boolean))";
+        expect(roundTrip(union1)).toEqual(makeOk(union1));
     })
 });

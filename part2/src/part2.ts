@@ -3,6 +3,8 @@
 // Q 2.1 
 
 
+import {expect, test} from "@jest/globals";
+
 export const delayedSum = (a: number, b: number, delay: number): Promise<number> => {
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -12,13 +14,20 @@ export const delayedSum = (a: number, b: number, delay: number): Promise<number>
   };
 
 export const testDelayedSum = () => {
-    console.log("testDelayedSum");
-    test('delayedSum waits at least the specified delay', () => {
-        let start = Date.now();
-        delayedSum(1, 2, 1000);
-        let end = Date.now();
-        expect(end - start).toBeGreaterThanOrEqual(1000);
+    console.log("Use npm test or check out the test directory to see the tests for this question.");
+    test('delayedSum returns the sum', () => {
+        expect(delayedSum(1, 2, 1000)).resolves.toBe(3);
     })
+    // checks the time now using Date.now(), checks the time after the call to delayedSum
+
+        let start = Date.now();
+        let x = delayedSum(1, 2, 1000);
+
+        x.then((result) => {
+            let end = Date.now();
+            expect(end - start).toBeGreaterThanOrEqual(1000);
+            expect(result).toEqual(3);
+        });
  }
  
 

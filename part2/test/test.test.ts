@@ -49,6 +49,10 @@ describe('Assignment 4 Part 2', () => {
             expect(post).toHaveProperty('userId', 1);
             expect(post).toHaveProperty('title');
             expect(post).toHaveProperty('body');
+            // check that the post doesn't have any additional properties
+            expect(Object.keys(post).length).toBe(4);
+
+
         })
 
         test('failed call to fechData', async () => {
