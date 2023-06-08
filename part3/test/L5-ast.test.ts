@@ -186,5 +186,11 @@ describe('L5 Unparse', () => {
         expect(TExpRoundTrip(union3)).toEqual(makeOk(unparsed));
     })
 
+    it('unparses union, nested unions in different positions', () => {
+        const union4 = "(union (union void string) (union string (union boolean number)))";
+        const unparsed = "(union boolean (union number (union string void)))";
+        expect(TExpRoundTrip(union4)).toEqual(makeOk(unparsed));
+    })
+
 
 });
